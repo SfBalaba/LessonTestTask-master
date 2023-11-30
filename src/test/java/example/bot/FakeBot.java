@@ -2,6 +2,7 @@ package example.bot;
 
 
 import java.util.LinkedList;
+import java.util.List;
 
 /**
  * класс для удобного тестирования BotLogic
@@ -10,13 +11,12 @@ public class FakeBot implements Bot {
     /**
      * Коллекция, хранящая все сообщения
      */
-    private final LinkedList<String> messages = new LinkedList<>();
-
+    private final List<String> messages = new LinkedList<>();
 
     /**
      * @return список сообщений от бота
      */
-    public LinkedList<String> getMessages() {
+    public List<String> getMessages() {
         return messages;
     }
 

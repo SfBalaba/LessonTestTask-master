@@ -4,7 +4,7 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.util.LinkedList;
+import java.util.Arrays;
 
 import static example.bot.Constants.*;
 
@@ -13,41 +13,39 @@ import static example.bot.Constants.*;
  * класс модульных тестов на класс {@link BotLogic}
  */
 public class BotLogicTest {
+    private BotLogic logic;
 
-    /**
-     * экземпляр логики бота, имулирующего удобную для тестирования отправку сообщений
-     */
-    private BotLogic fakeLogic;
     /**
      * пользователь
      */
     private User user;
     /**
-     * список всех сообщенией от бота
+     * видоизменённый бот удобен для тестирования, имитирует {@link ConsoleBot}
      */
-    private LinkedList<String> botMessages;
+    private FakeBot fakeBot;
 
     @Before
     public void setUp() {
-        /**
-         * видоизменённый бот удобен для тестирования, имитирует {@link ConsoleBot}
-         */
-        FakeBot fakeBot = new FakeBot();
-        fakeLogic = new BotLogic(fakeBot);
+        fakeBot = new FakeBot();
+        logic = new BotLogic(fakeBot);
         user = new User(1L);
-        botMessages = fakeBot.getMessages();
     }
 
     /**
-     * Тестирование распознавания правильного ответа
+     * Тестирование команды /test,  если все отвтеты правильные
      */
     @Test
     public void BotLogicprocessNonCommandTestCorrect() {
-        fakeLogic.processCommand(user, "/test");
-        Assert.assertEquals("Вычислите степень: 10^2", botMessages.get(0));
-        fakeLogic.processCommand(user, "100");
-        Assert.assertEquals("Правильный ответ!", botMessages.get(1));
+        logic.processCommand(user, "/test");
+        Assert.assertEquals("Вычислите степень: 10^2", fakeBot.getMessages().get(0));
+        logic.processCommand(user, "100");
+        Assert.assertEquals("Правильный ответ!", fakeBot.getMessages().get(1));
+        Assert.assertEquals("Сколько будет 2 + 2 * 2", fakeBot.getMessages().get(2));
+        logic.processCommand(user, "6");
+        Assert.assertEquals("Правильный ответ!", fakeBot.getMessages().get(3));
+        Assert.assertEquals("Тест завершен", fakeBot.getMessages().get(4));
         Assert.assertEquals(0, user.getWrongAnswerQuestions().size());
+
     }
 
     /**
@@ -55,102 +53,86 @@ public class BotLogicTest {
      */
     @Test
     public void BotLogicprocessNonCommandTestIncorrect() {
-        fakeLogic.processCommand(user, "/test");
-        Assert.assertEquals("Вычислите степень: 10^2", botMessages.get(0));
-        fakeLogic.processCommand(user, "101");
-        Assert.assertEquals("Вы ошиблись, верный ответ: 100", botMessages.get(1));
-        Assert.assertEquals(1, user.getWrongAnswerQuestions().size());
+        logic.processCommand(user, "/test");
+        Assert.assertEquals("Вычислите степень: 10^2", fakeBot.getMessages().get(0));
+        logic.processCommand(user, "101");
+        Assert.assertEquals("Вы ошиблись, верный ответ: 100", fakeBot.getMessages().get(1));
+        Assert.assertEquals("Сколько будет 2 + 2 * 2", fakeBot.getMessages().get(2));
+        logic.processCommand(user, "8");
+        Assert.assertEquals("Вы ошиблись, верный ответ: 6", fakeBot.getMessages().get(3));
+        Assert.assertEquals("Тест завершен", fakeBot.getMessages().get(4));
+        Assert.assertEquals(State.INIT, user.getState());
+        Assert.assertEquals(2, user.getWrongAnswerQuestions().size());
     }
 
-
-    /**
-     * <p>Тестирование правильного ответа второго вопроса теста после того,</p>
-     * <p>как ответ на первый вопрос неправильный</p>
-     */
-    @Test
-    public void BotLogicprocessNonCommandTestSecondCorrect() {
-        fakeLogic.processCommand(user, "/test");
-        fakeLogic.processCommand(user, "101");
-        fakeLogic.processCommand(user, "6");
-        Assert.assertEquals("Правильный ответ!", botMessages.get(3));
-    }
-
-
-    /**
-     * Тестирование завершения прохождения тестов
-     */
-    @Test
-    public void BotLogicprocessNonCommandAllTestsComplete() {
-        fakeLogic.processCommand(user, "/test");
-        fakeLogic.processCommand(user, "100");
-        fakeLogic.processCommand(user, "6");
-        Assert.assertEquals("Тест завершен", botMessages.get(4));
-    }
 
     /**
      * Тестирование команды /repeat, если нет вопросов для повторения
      */
     @Test
     public void BotLogicprocessRepeatIfNotPresent() {
-        fakeLogic.processCommand(user, "/repeat");
-        Assert.assertEquals("Нет вопросов для повторения", botMessages.get(0));
+        logic.processCommand(user, "/repeat");
+        Assert.assertEquals("Нет вопросов для повторения", fakeBot.getMessages().get(0));
     }
-
     /**
      * Тестирование команды /repeat, когда есть неправильно отвеченные вопросы
      */
     @Test
     public void BotLogicprocessRepeatIfPresent() {
-        fakeLogic.processCommand(user, "/test");
-        fakeLogic.processCommand(user, "102");
-        fakeLogic.processCommand(user, COMMAND_STOP);
-        fakeLogic.processCommand(user, "/repeat");
+        logic.processCommand(user, "/test");
+        logic.processCommand(user, "102");
+        logic.processCommand(user, COMMAND_STOP);
+        Assert.assertEquals(4, fakeBot.getMessages().size());
+        Assert.assertEquals("Тест завершен", fakeBot.getMessages().get(3));
+        logic.processCommand(user, "/repeat");
         Assert.assertEquals(State.REPEAT, user.getState());
         Assert.assertTrue(user.getCurrentWrongAnswerQuestion().isPresent());
         Assert.assertEquals(1, user.getWrongAnswerQuestions().size());
+        Assert.assertEquals("Вычислите степень: 10^2", fakeBot.getMessages().get(4));
+        logic.processCommand(user, "100");
+        Assert.assertEquals("Тест завершен", fakeBot.getMessages().get(6));
+        Assert.assertEquals(0, user.getWrongAnswerQuestions().size());
+        Assert.assertEquals(State.INIT, user.getState());
     }
-
-    /**
-     * Тестирование команды /notify
-     */
-    @Test
-    public void BotLogicprocessNotifyCommand() {
-        fakeLogic.processCommand(user, "/notify");
-        Assert.assertEquals("Введите текст напоминания", botMessages.pop());
-    }
-
 
     /**
      * Тестирование команды /notify устанвоки напоминаний
      */
     @Test
-    public void BotLogicprocessNotificationDelay(){
-        fakeLogic.processCommand(user, "/notify");
-        fakeLogic.processCommand(user, "Тестирование напоминаний");
+    public void BotLogicprocessNotificationDelay() {
+        logic.processCommand(user, "/notify");
+        Assert.assertEquals("Введите текст напоминания", fakeBot.getMessages().get(0));
+        logic.processCommand(user, "Тестирование напоминаний");
         Assert.assertTrue(user.getNotification().isPresent());
-        Assert.assertEquals("Через сколько секунд напомнить?", botMessages.get(1));
-        fakeLogic.processCommand(user, "102");
-        Assert.assertEquals("Напоминание установлено", botMessages.get(2));
-        Assert.assertEquals(3, botMessages.size());
+        Assert.assertEquals("Через сколько секунд напомнить?", fakeBot.getMessages().get(1));
+        logic.processCommand(user, "1");
+        Assert.assertEquals("Напоминание установлено", fakeBot.getMessages().get(2));
+        Assert.assertEquals(3, fakeBot.getMessages().size());
+        try {
+            Thread.sleep(1110);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+        Assert.assertEquals("Сработало напоминание: 'Тестирование напоминаний'", fakeBot.getMessages().get(3));
     }
 
 
     /**
      * Тестирование двух отложенных напоминаний одновременно
+     *
      * @throws InterruptedException исключение прерывания выполнения теста
      */
     @Test
     public void BotLogicprocessTwoNotificationDelay() throws InterruptedException {
-        fakeLogic.processCommand(user, "/notify");
-        fakeLogic.processCommand(user,"Тестирование напоминаний");
-        fakeLogic.processCommand(user,"4");
-        fakeLogic.processCommand(user, "/notify");
-        fakeLogic.processCommand(user,"Тестирование напоминаний2");
-        fakeLogic.processCommand(user,"1");
+        logic.processCommand(user, "/notify");
+        for (String s : Arrays.asList("Тестирование напоминаний", "2", "/notify", "Тестирование напоминаний2", "1")) {
+            logic.processCommand(user, s);
+        }
+        Assert.assertEquals(fakeBot.getMessages().size(), 6);
         Thread.sleep(1110);
-        Assert.assertEquals("Сработало напоминание: 'Тестирование напоминаний2'", botMessages.get(6));
-        Thread.sleep(3010);
-        Assert.assertEquals("Сработало напоминание: 'Тестирование напоминаний'", botMessages.get(7));
+        Assert.assertEquals("Сработало напоминание: 'Тестирование напоминаний2'", fakeBot.getMessages().get(6));
+        Thread.sleep(1010);
+        Assert.assertEquals("Сработало напоминание: 'Тестирование напоминаний'", fakeBot.getMessages().get(7));
     }
 
 
@@ -159,12 +141,12 @@ public class BotLogicTest {
      */
     @Test
     public void commandNotificationIncorrectInput() {
-        fakeLogic.processCommand(user, "/notify");
-        Assert.assertEquals("Введите текст напоминания", botMessages.get(0));
-        fakeLogic.processCommand(user,"Тестирование напоминаний");
-        Assert.assertEquals("Через сколько секунд напомнить?", botMessages.get(1));
-        fakeLogic.processCommand(user,"ssf");
-        Assert.assertEquals("Пожалуйста, введите целое число", botMessages.get(2));
+        logic.processCommand(user, "/notify");
+        Assert.assertEquals("Введите текст напоминания", fakeBot.getMessages().get(0));
+        logic.processCommand(user, "Тестирование напоминаний");
+        Assert.assertEquals("Через сколько секунд напомнить?", fakeBot.getMessages().get(1));
+        logic.processCommand(user, "ssf");
+        Assert.assertEquals("Пожалуйста, введите целое число", fakeBot.getMessages().get(2));
     }
 
 }
